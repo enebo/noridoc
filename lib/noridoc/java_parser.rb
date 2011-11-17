@@ -1,6 +1,44 @@
 require 'noridoc/modifier'
 
 module NoriDoc
+  class RMethod
+    attr_reader :java_name, :ruby_names
+
+    def initialize(name, jmethods)
+      @java_name, @jmethods = name, jmethods
+      calculate_ruby_names
+    end
+
+    def calculate_ruby_names
+      @ruby_names = [] 
+      @ruby_names.concat shorthand_names(@jmethods)
+      @ruby_names << snakecase(java_name)
+    end
+
+    # TODO: Probably move these to module
+    def snakecase(name)
+      name.gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').gsub(/([a-z\d])([A-Z])/,'\1_\2').downcase
+    end
+    
+    # FIXME: Should make sure these methods really qualify based on things like
+    # return type, etc..
+    def shorthand_names(methods)
+      names = []
+      if java_name =~ /get(.+)/
+        names << snakecase($1[0,1].downcase + $1[1..-1])
+      elsif java_name =~ /set(.+)/
+        names << snakecase($1[0,1].downcase + $1[1..-1]) + '='
+      elsif java_name =~ /is(.+)/
+        return unless $1
+        short_name = snakecase($1[0,1].downcase + $1[1..-1])
+        names << short_name
+        names <<  short_name + '?'
+      end
+      names
+    end
+    
+  end
+  
   class JModel
     include NoriDoc::Modifier
 
@@ -43,7 +81,7 @@ module NoriDoc
 
   # FIXME: Consider adding generics
   class JClass < JModel
-    attr_reader :package, :fields, :constructors, :inner_classes
+    attr_reader :package, :fields, :constructors, :inner_classes, :interfaces
     attr_accessor :superclass
     
     def initialize(cls)
@@ -55,6 +93,7 @@ module NoriDoc
       @class_methods = {} # name => [overload1, overload2...]
       @fields = [] # JField...
       @inner_classes = [] # JClass...
+      @interfaces = [] # JClass...
     end
     
     def add_constructor(constructor)
@@ -66,6 +105,10 @@ module NoriDoc
       overloads = map[method.name] || []
       overloads << method
       map[method.name] = overloads
+    end
+
+    def ruby_methods
+      @methods.keys.map { |name| RMethod.new name, @methods[name] }
     end
 
     def fqn
@@ -83,6 +126,8 @@ module NoriDoc
         cls.constructors.each { |c| jcls.constructors << JConstructor.parse(c) }
         cls.methods.each { |method| jcls.add_method JMethod.parse(method) }
         cls.inner_classes.each { |i| jcls.inner_classes << parser.class_for(i) }
+        cls.interfaces.each { |i| jcls.interfaces << parser.class_for(i) }
+        jcls.superclass = parser.class_for(cls.superclass) 
       end
     end
   end
@@ -102,6 +147,7 @@ module NoriDoc
 
     # FIXME: Are cycles possible? Might need to mark classes table if so
     def class_for(cls)
+      return nil unless cls # superclass will return nil when none
       fqn = cls.qualified_type_name
       return classes[fqn] if classes[fqn]
       classes[fqn] = JClass.parse(self, cls)
