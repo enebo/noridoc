@@ -1,5 +1,10 @@
 require 'noridoc/modifier'
 
+# If only Java method then no point repeating signature above the doc
+# If more than one override then each will be displayed below
+#   Main argument string should make a glob-like merge of arg types
+
+
 module NoriDoc
   class RMethod
     attr_reader :java_name, :ruby_names
@@ -18,6 +23,20 @@ module NoriDoc
     # TODO: Probably move these to module
     def snakecase(name)
       name.gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').gsub(/([a-z\d])([A-Z])/,'\1_\2').downcase
+    end
+
+    def javadocs
+      text = ""
+      @jmethods.each do |method|
+        text << method.name << method.signature << "\n" << method.text
+        if method.return_doc
+          text << "\nreturns: " << method.return_doc << "\n"
+        end
+        method.parameters.each do |parm|
+            text << "parm: #{parm.name} #{parm.typeName} #{parm.type} #{parm.toString}\n"
+        end
+      end
+      text
     end
     
     # FIXME: Should make sure these methods really qualify based on things like
@@ -69,9 +88,23 @@ module NoriDoc
     end
   end
 
+  # param.name - short name
+  # param.typeName - show type name
+  # param.type - fqn type name
   class JMethod < JModel
+    attr_reader :signature, :text, :tags, :parameters
+
     def initialize(method)
       super(method.name, method.modifier_specifier)
+      @parameters = method.parameters || []
+      @signature = method.signature
+      @text = method.comment_text
+      @tags = method.tags
+    end
+
+    def return_doc
+      return_tag = @tags.find { |t| t.name == '@return' }
+      return_tag ? return_tag.text : nil
     end
 
     def self.parse(method)
