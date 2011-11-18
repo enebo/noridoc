@@ -25,6 +25,10 @@ module NoriDoc
       name.gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').gsub(/([a-z\d])([A-Z])/,'\1_\2').downcase
     end
 
+    def java_methods
+      @jmethods
+    end
+
     def javadocs
       text = ""
       @jmethods.each do |method|
@@ -100,6 +104,10 @@ module NoriDoc
       @signature = method.signature
       @text = method.comment_text
       @tags = method.tags
+    end
+
+    def param_docs
+      @tags.find_all { |t| t.name == '@param' } || []
     end
 
     def return_doc
