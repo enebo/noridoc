@@ -37,8 +37,23 @@
 
 <xsl:template match="method_details">
   <div class="class_detail">
-    <xsl:apply-templates select="method_detail"/>
+    <xsl:apply-templates select="class_method_details"/>
+    <xsl:apply-templates select="instance_method_details"/>
   </div>
+</xsl:template>
+
+<xsl:template match="class_method_details">
+  <div class="method_section_header">
+    Class Methods
+  </div>
+  <xsl:apply-templates select="method_detail"/>
+</xsl:template>
+
+<xsl:template match="instance_method_details">
+  <div class="method_section_header">
+    Instance Methods
+  </div>
+  <xsl:apply-templates select="method_detail"/>
 </xsl:template>
 
 <xsl:template match="superclass">
@@ -84,6 +99,6 @@
 </xsl:template>
 
 <xsl:template match="method_item">
-  <a><xsl:attribute name="href">#<xsl:value-of select="@anchor"/></xsl:attribute><li><xsl:attribute name="class"><xsl:value-of select="@type"/>_method_name</xsl:attribute><xsl:value-of select="@name"/></li></a>
+  <a><xsl:attribute name="href">#<xsl:value-of select="@anchor"/></xsl:attribute><li><xsl:attribute name="class"><xsl:value-of select="@type"/>_method_name</xsl:attribute><xsl:if test="@class_method = 'true'">::</xsl:if><xsl:if test="@class_method = 'false'">#</xsl:if><xsl:value-of select="@name"/></li></a>
 </xsl:template>
 </xsl:stylesheet> 

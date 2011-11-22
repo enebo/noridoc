@@ -4,8 +4,8 @@ module NoriDoc
   class RMethod
     attr_reader :java_name, :ruby_names
 
-    def initialize(name, jmethods)
-      @java_name, @jmethods = name, jmethods
+    def initialize(name, jmethods, class_method=false)
+      @java_name, @jmethods, @class_method = name, jmethods, class_method
       calculate_ruby_names
     end
 
@@ -19,6 +19,10 @@ module NoriDoc
     # TODO: Probably move these to module
     def snakecase(name)
       name.gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').gsub(/([a-z\d])([A-Z])/,'\1_\2').downcase
+    end
+
+    def class_method?
+      @class_method
     end
 
     def java_methods
@@ -146,6 +150,10 @@ module NoriDoc
 
     def ruby_methods
       @methods.keys.map { |name| RMethod.new name, @methods[name] }
+    end
+
+    def ruby_class_methods
+      @class_methods.keys.map { |name| RMethod.new name, @class_methods[name], true }
     end
 
     def fqn

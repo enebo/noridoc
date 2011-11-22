@@ -70,7 +70,6 @@ module NoriDoc
               end
             end
           end
-
         end
       end
 
@@ -93,26 +92,40 @@ module NoriDoc
 
       def render_method_details(io, indent)
         tag(io, :method_details, indent) do |indent|
-          @jclass.ruby_methods.sort { |a, b| a.java_name <=> b.java_name}.each do |rmethod|
+          render_method_details_inner(io, indent, :class_method_details, @jclass.ruby_class_methods)
+          render_method_details_inner(io, indent, :instance_method_details, @jclass.ruby_methods)
+        end
+      end
+
+      def render_method_details_inner(io, indent, tag_name, methods)
+        return if methods.empty?
+        sorted_list = methods.sort { |a, b| a.java_name <=> b.java_name}
+        tag(io, tag_name, indent) do |indent|
+          sorted_list.each do |rmethod|
             render_detailed_method(io, indent, rmethod)
           end
         end
       end
 
       def render_method_list(io, indent)
+        tag(io, :method_outline, indent) do |indent|
+          render_method_list_inner(io, indent, @jclass.ruby_class_methods)
+          render_method_list_inner(io, indent, @jclass.ruby_methods)
+        end
+      end
+
+      def render_method_list_inner(io, indent, methods)
         mixed_map = {}
-        @jclass.ruby_methods.each do |rmethod|
+        methods.each do |rmethod|
           link_anchor = rmethod.java_name
-          mixed_map[rmethod.java_name] = ['java', link_anchor]
+          mixed_map[rmethod.java_name] = ['java', link_anchor, rmethod.class_method?]
           rmethod.ruby_names.each do |rname|
-            mixed_map[rname] = ['ruby', link_anchor]
+            mixed_map[rname] = ['ruby', link_anchor, rmethod.class_method?]
           end
         end
 
-        tag(io, :method_outline, indent) do |indent|
-          mixed_map.sort.each do |name, (type, anchor)|
-            tag(io, :method_item, indent, :type => type, :anchor => anchor, :name => name)
-          end
+        mixed_map.sort.each do |name, (type, anchor, class_method)|
+          tag(io, :method_item, indent, :type => type, :anchor => anchor, :name => name, :class_method => class_method)
         end
       end
 
