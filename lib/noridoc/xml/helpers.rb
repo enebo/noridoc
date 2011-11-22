@@ -41,6 +41,17 @@ module NoriDoc
         str.gsub!(/<([^\/]+)>/, '_1/')
         str
       end
+
+      # Location relative to current directory we should move up to
+      # make package_path values work.  Note, on all_packages don't
+      # need an up_path so they should override and return ''
+      def calculate_up_path(name)
+          up_path = ''
+          (name.split('.').length - 1).times do 
+            up_path += '../'
+          end
+          up_path
+      end
     end
   end
 end

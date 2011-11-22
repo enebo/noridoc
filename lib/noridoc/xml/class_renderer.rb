@@ -12,7 +12,10 @@ module NoriDoc
       def render(io=$stdout)
         prologue(io)
 
-        attrs = {:name =>@jclass.name,:package =>@jclass.package,:type=>'java'}
+        kind = @jclass.interface? ? "module" : "class"
+        attrs = { :name => @jclass.name, :package => @jclass.package,
+          :type=>'java', :kind => kind }
+
         tag(io, :class, "", attrs) do |indent|
           render_all_packages io, indent
           render_superclass io, indent 
@@ -49,7 +52,9 @@ module NoriDoc
 
       def render_detailed_method(io, indent, rmethod)
         param_string = param_string(rmethod)
-        tag(io, :method_detail, indent, :name => rmethod.java_name, :param_string => param_string) do |indent|
+        attrs = {:name => rmethod.java_name, :param_string => param_string}
+
+        tag(io, :method_detail, indent, attrs) do |indent|
           ruby_names = rmethod.ruby_names
           if !ruby_names.empty?
             tag(io, :ruby_aliases, indent) do |indent_aliases|
@@ -58,18 +63,29 @@ module NoriDoc
               end
             end
           end
+
           java_methods = rmethod.java_methods
           if java_methods.length == 1
             render_detailed_method_tags(io, indent, java_methods[0])
           else
-            tag(io, :java_overloads, indent) do |indent2|
-              rmethod.java_methods.each do |jmethod|
-                tag(io, :java_overload, indent2, :name => jmethod.name, :signature => jmethod.signature) do |indent3|
-                  render_detailed_method_tags(io, indent3, jmethod)
-                end
-              end
-            end
+            render_java_overloads(io, indent, java_methods)
           end
+        end
+      end
+
+      def render_java_overloads(io, indent, java_methods)
+        tag(io, :java_overloads, indent) do |indent|
+          java_methods.each do |jmethod|
+            render_java_overload(io, indent, jmethod)
+          end
+        end
+      end
+
+      def render_java_overload(io, indent, jmethod)
+        attrs = {:name => jmethod.name, :signature => jmethod.signature}
+
+        tag(io, :java_overload, indent, attrs) do |indent|
+          render_detailed_method_tags(io, indent, jmethod)
         end
       end
 
@@ -132,15 +148,19 @@ module NoriDoc
       def render_superclass(io, indent)
         if @jclass.superclass
           name = @jclass.superclass.name
-          package = @jclass.superclass.package
+          package = @jclass.superclass.package.name
         elsif @jclass.interface? && @jclass.interfaces[0]
           name = @jclass.interfaces[0].name
-          package = @jclass.interfaces[0].package
-        else
-          name = 'Object'
-          package = 'java.lang'
+          package = @jclass.interfaces[0].package.name
         end
-        tag(io, :superclass, indent, :name => name, :package => package)
+
+        if name
+          up_path = calculate_up_path(package + "." + name)
+          split = package.split('.')
+          split << name
+          path = up_path + split.join('/')
+          tag(io, :superclass, indent, :name => name, :package => package, :path => path)
+        end
       end
     end
   end

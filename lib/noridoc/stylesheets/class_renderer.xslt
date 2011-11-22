@@ -23,7 +23,7 @@
       </ul>
     </div>
   </div>
-  <div class="class_header"><span class="package"><xsl:value-of select="@package"/></span>.<span class="class_name"><xsl:value-of select="@name"/></span>
+  <div class="class_header"><span class="package"><xsl:value-of select="@kind"/></span><span class="package"><xsl:value-of select="@package"/></span>.<span class="class_name"><xsl:value-of select="@name"/></span>
   <xsl:apply-templates select="superclass"/>
   </div>
   <xsl:apply-templates select="method_details"/>
@@ -57,7 +57,7 @@
 </xsl:template>
 
 <xsl:template match="superclass">
-  <span class="superclass_package">&lt; <xsl:value-of select="@package"/></span>.<span class="superclass_class_name"><xsl:value-of select="@name"/></span>
+  <a><xsl:attribute name="href"><xsl:value-of select="@path"/>.html</xsl:attribute><span class="superclass_package">&lt; <xsl:value-of select="@package"/></span>.<span class="superclass_class_name"><xsl:value-of select="@name"/></span></a>
 </xsl:template>
 
 <xsl:template match="method_detail">
