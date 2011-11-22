@@ -1,10 +1,5 @@
 require 'noridoc/modifier'
 
-# If only Java method then no point repeating signature above the doc
-# If more than one override then each will be displayed below
-#   Main argument string should make a glob-like merge of arg types
-
-
 module NoriDoc
   class RMethod
     attr_reader :java_name, :ruby_names
@@ -17,7 +12,8 @@ module NoriDoc
     def calculate_ruby_names
       @ruby_names = [] 
       @ruby_names.concat shorthand_names(@jmethods)
-      @ruby_names << snakecase(java_name)
+      snakecase = snakecase(java_name)
+      @ruby_names << snakecase if snakecase != java_name
     end
 
     # TODO: Probably move these to module
@@ -47,11 +43,11 @@ module NoriDoc
     # return type, etc..
     def shorthand_names(methods)
       names = []
-      if java_name =~ /get(.+)/
+      if java_name =~ /\Aget(.+)/
         names << snakecase($1[0,1].downcase + $1[1..-1])
-      elsif java_name =~ /set(.+)/
+      elsif java_name =~ /\Aset(.+)/
         names << snakecase($1[0,1].downcase + $1[1..-1]) + '='
-      elsif java_name =~ /is(.+)/
+      elsif java_name =~ /\Ais(.+)/
         return unless $1
         short_name = snakecase($1[0,1].downcase + $1[1..-1])
         names << short_name
@@ -65,7 +61,7 @@ module NoriDoc
   class JModel
     include NoriDoc::Modifier
 
-    attr_reader :modifiers, :name
+    attr_reader :modifiers, :name, :parser
 
     def initialize(name, modifiers)
       @name, @modifiers =  name, modifiers
@@ -172,15 +168,34 @@ module NoriDoc
       end
     end
   end
+
+  module com::sun::javadoc::PackageDoc
+    # Return a list of all packagedocs from this package down.
+    # This is typically called for creating hyperlinks for each sub-package.
+    def containing_packages(root)
+      combined = ''
+      self.name.split('.').inject([]) do |list, fragment|
+        combined += fragment
+        found_package = root.package_named(combined)
+        list << found_package if found_package
+        combined += '.'
+        list
+      end
+    end
+
+    def to_path
+      File.join(name.split('.'))
+    end
+  end
   
   class JavaParser
-    attr_reader :classes
+    attr_reader :classes, :root
 
     def initialize(root)
       @root = root
       @classes = {} # FQN => JClass
     end
-    
+
     def parse
       @root.classes.each { |cls| class_for(cls) }
       @classes

@@ -1,20 +1,26 @@
 require 'java'
 require 'fileutils'
 require 'noridoc/java_parser'
-require 'noridoc/xml_renderer'
+require 'noridoc/xml/class_renderer'
+require 'noridoc/xml/all_packages_renderer'
+require 'noridoc/xml/package_renderer'
 
 import javax.xml.transform.TransformerFactory
 
 module NoriDoc
-  HTML_CLASS_STYLESHEET = "class_renderer.xslt"
+  STYLESHEET_DIR = File.join(File.dirname(__FILE__), 'noridoc', 'stylesheets')
+  HTML_CLASS_STYLESHEET = File.join(STYLESHEET_DIR, "class_renderer.xslt")
+  PACKAGE_STYLESHEET = File.join(STYLESHEET_DIR, "package_renderer.xslt")
+
   class Doclet
     def self.start(root_doc)
-      generate_package_pages(root_doc.specified_packages)
+      transform_all_packages root_doc
+      transform_individual_packages root_doc
 
       NoriDoc::JavaParser.new(root_doc).parse.each do |name, jclass|
         xml_path = package_to_pathname(jclass, ".xml")
         File.open(xml_path, "w") do |io|
-          NoriDoc::XMLClassRenderer.new(jclass).render(io)
+          NoriDoc::XML::ClassRenderer.new(jclass).render(io)
         end
         html_path = package_to_pathname(jclass, ".html")
         xslt_transform(xml_path, HTML_CLASS_STYLESHEET, html_path)
@@ -22,12 +28,23 @@ module NoriDoc
       true
     end
 
-    def self.generate_package_pages(packages)
-      packages.each do |package|
-        puts package.name
-        puts package.all_classes.map { |c| c.name }.sort.join(', ')
+    def self.transform_all_packages(root_doc)
+      xml_path = File.join("docs", "all_packages.xml")
+      File.open(xml_path, "w") do |io|
+        NoriDoc::XML::AllPackagesRenderer.new(root_doc).render(io)
       end
-      exit 0
+      html_path = File.join("docs", "all_packages.html")
+      xslt_transform(xml_path, PACKAGE_STYLESHEET, html_path)
+    end
+
+    def self.transform_individual_packages(root_doc)
+      renderer = NoriDoc::XML::PackageRenderer.new(root_doc)
+      root_doc.specified_packages.each do |package|
+        xml_path = File.join("docs", package.to_path + ".xml")
+        File.open(xml_path, "w") { |io| renderer.render(package, io) }
+        html_path = File.join("docs", package.to_path + ".html")
+        xslt_transform(xml_path, PACKAGE_STYLESHEET, html_path)
+      end
     end
 
     def self.xslt_transform(xml, style_sheet, file)
@@ -39,6 +56,8 @@ module NoriDoc
       begin
         transformer = TransformerFactory.newInstance.newTransformer(stylesheet)
         transformer.transform(document, result)
+      rescue javax.xml.transform.TransformerException => e
+        puts "TRANSFORMER ERROR in #{xml} with #{style_sheet}"
       rescue java.lang.Exception => e
         puts e
       end
