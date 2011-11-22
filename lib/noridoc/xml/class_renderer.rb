@@ -133,6 +133,9 @@ module NoriDoc
         if @jclass.superclass
           name = @jclass.superclass.name
           package = @jclass.superclass.package
+        elsif @jclass.interface? && @jclass.interfaces[0]
+          name = @jclass.interfaces[0].name
+          package = @jclass.interfaces[0].package
         else
           name = 'Object'
           package = 'java.lang'
